@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "omid.tv-audio",
+  "name": "Audio Output",
+  "version": "1.0.0",
+  "author": "omid",
+  "license": "MIT",
+  "description": "Follow the output you plug in: jack speaker/headphone, Bluetooth, USB or the HDMI display.",
+  "kinds": [
+    "service",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "Widget.qml"
+  },
+  "barWidget": {
+    "displayName": "Audio Output",
+    "description": "Cycles through the outputs that are actually connected, and shows which one owns the audio.",
+    "category": "Audio",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "hideWhenIdle": true
+    },
+    "schema": [
+      {
+        "key": "hideWhenIdle",
+        "type": "boolean",
+        "label": "Hide the icon while only the built-in speakers are available",
+        "defaultValue": true
+      }
+    ]
+  }
+}

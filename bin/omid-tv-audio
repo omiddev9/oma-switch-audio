@@ -1,0 +1,347 @@
+#!/usr/bin/env bash
+# Route audio to whichever output was plugged in last: a jack speaker/headphone,
+# a Bluetooth or USB device, the HDMI display, or the built-in speakers.
+#
+# The built-in HDA card only runs one output profile at a time (analog OR HDMI),
+# so PipeWire does not even create the other sink until the card profile is
+# changed -- that is why the stock Omarchy audio picker cannot do this alone.
+set -uo pipefail
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omid-tv-audio"
+PIN_FILE="$STATE_DIR/choice"
+ORDER_FILE="$STATE_DIR/order"
+TARGET_FILE="$STATE_DIR/.last-target"
+LOCK_FILE="$STATE_DIR/.lock"
+mkdir -p "$STATE_DIR"
+
+log() { printf '%s\n' "$*" >&2; }
+
+# ------------------------------------------------------------------ hardware
+
+card_section() {
+  pactl list cards 2>/dev/null | awk -v want="$1" '
+    /^[[:space:]]*Name: / { keep = ($2 == want) }
+    keep { print }'
+}
+
+internal_card() {
+  local c
+  while read -r c; do
+    [[ $c == alsa_card.pci-* ]] || continue
+    if card_section "$c" | grep -q "hdmi-output-0"; then
+      printf '%s\n' "$c"
+      return 0
+    fi
+  done < <(pactl list cards short 2>/dev/null | awk '{print $2}')
+  return 1
+}
+
+# Every real sink PipeWire has made: name <TAB> device.api <TAB> label.
+sink_table() {
+  pactl list sinks 2>/dev/null | awk '
+    function flush() { if (name != "") printf "%s\t%s\t%s\n", name, api, desc }
+    /^Sink #/ { flush(); name = ""; api = ""; desc = "" }
+    /^[[:space:]]*Name: / { name = $2 }
+    /^[[:space:]]*device\.api = / { api = substr($3, 2, length($3) - 2) }
+    /^[[:space:]]*device\.description = / { desc = substr($0, index($0, "=") + 2); sub(/"$/, "", desc) }
+    /^[[:space:]]*node\.description = / {
+      if (desc == "") { desc = substr($0, index($0, "=") + 2); sub(/"$/, "", desc) }
+    }
+    END { flush() }' |
+    awk -F'\t' '$1 != "auto_null" && $1 !~ /filter/ && $1 !~ /\.monitor$/ && $3 != ""'
+}
+
+# Jack sensors come straight from the codec: while the card is in the HDMI
+# profile the analog ports are not listed by PipeWire at all.
+card_index() {
+  card_section "$1" | sed -n 's/^[[:space:]]*device.string = "\{0,1\}\([0-9]\{1,2\}\).*/\1/p' | head -1
+}
+
+# Headphone jack detection: codec control names vary ("Headphone Jack",
+# "Front Headphone Jack", "Headphone Jack Sense", ...), so match any control
+# whose name mentions both "headphone" and "jack".
+jack_on() {
+  local numid
+  numid=$(amixer -c "$CARD_IDX" controls 2>/dev/null |
+    grep -iE 'headphone' | grep -iE 'jack' |
+    sed -E 's/.*numid=([0-9]+).*/\1/' | head -1)
+  [[ -n $numid ]] || return 1
+  amixer -c "$CARD_IDX" cget numid="$numid" 2>/dev/null | tail -1 | grep -qi "values=on"
+}
+
+hdmi_available() {
+  card_section "$CARD" |
+    sed -n '/Profiles:/,/Active Profile:/p' |
+    grep -E '^[[:space:]]+output:hdmi-stereo: ' |
+    grep -q 'available: yes'
+}
+
+active_profile() {
+  card_section "$CARD" | sed -n 's/^[[:space:]]*Active Profile: //p' | head -1
+}
+
+read_hardware() {
+  CARD=$(internal_card) || return 1
+  CARD_IDX=$(card_index "$CARD")
+  PCI=${CARD#alsa_card.}
+  ANALOG_SINK="alsa_output.${PCI}.analog-stereo"
+  HDMI_SINK="alsa_output.${PCI}.hdmi-stereo"
+  HDMI_LABEL="HDMI display"
+  local eld name
+  for eld in /proc/asound/card"$CARD_IDX"/eld#2.3; do
+    [[ -r $eld ]] || continue
+    grep -q 'monitor_present\s\+1' "$eld" || continue
+    name=$(sed -n 's/^monitor_name//p' "$eld" | head -1 | tr -d ' \t')
+    [[ -n $name ]] && HDMI_LABEL="${name} (HDMI)"
+  done
+}
+
+# ------------------------------------------------------------------- targets
+# One line per usable output: key <TAB> sink <TAB> label <TAB> glyph.
+# "headphones" and "speakers" share the analog sink; the codec's auto-mute picks
+# the physical one, so only the jack state decides which is worth offering.
+candidates() {
+  local name api desc internal_prefix="alsa_output.${PCI}."
+  sink_table | while IFS=$'\t' read -r name api desc; do
+    if [[ $name == "$internal_prefix"* ]]; then
+      [[ $name == *.hdmi-stereo ]] && printf '%s\t%s\t%s\t%s\n' "hdmi" "$name" "$HDMI_LABEL" "󰍹"
+      continue
+    fi
+    printf '%s\t%s\t%s\t%s\n' "ext:${name%.*}" "$name" "$desc" \
+      "$([[ $api == bluez ]] && printf '󰠯' || printf '󰓃')"
+  done
+
+  if jack_on; then
+    printf '%s\t%s\t%s\t%s\n' "headphones" "$ANALOG_SINK" "Headphones / jack" "󰋋"
+  else
+    printf '%s\t%s\t%s\t%s\n' "speakers" "$ANALOG_SINK" "Built-in speakers" "󰓃"
+  fi
+
+  # The TV can be a target before its sink exists, while the card is still in
+  # the analog profile.
+  if hdmi_available && ! sink_table | grep -q "^$HDMI_SINK"; then
+    printf '%s\t%s\t%s\t%s\n' "hdmi" "$HDMI_SINK" "$HDMI_LABEL" "󰍹"
+  fi
+}
+
+field() { candidates | awk -F'\t' -v k="$1" -v n="$2" '$1 == k { print $n; exit }'; }
+sink_for() { field "$1" 2; }
+label_for() { field "$1" 3; }
+glyph_for() { field "$1" 4; }
+
+# ------------------------------------------------------------------- profile
+
+profile_for() {
+  case $1 in
+    hdmi) printf 'output:hdmi-stereo+input:analog-stereo\n' ;;
+    *) printf 'output:analog-stereo+input:analog-stereo\n' ;;
+  esac
+}
+
+# A profile change recreates the sink node; wait for it instead of racing it.
+# Checked against the real sink table, not candidates(): candidates deliberately
+# lists the HDMI sink before it exists, so testing that would never block.
+sink_exists() { sink_table | awk -F'\t' -v n="$1" '$1 == n { found = 1 } END { exit !found }'; }
+wait_for_sink() {
+  local _
+  for _ in {1..25}; do
+    sink_exists "$1" && return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+sink_index() { pactl list sinks short 2>/dev/null | awk -v n="$1" '$2 == n { print $1; exit }'; }
+
+# One line per stream: sink input id <TAB> the sink index it sits on now.
+# Parsed from the long listing because the short one's column order is not
+# documented and has already moved the sink out from under a positional read.
+stream_sinks() {
+  pactl list sink-inputs 2>/dev/null | awk '
+    /^Sink Input #/ { sub(/^Sink Input #/, ""); id = $1 }
+    /^[[:space:]]*Sink: / { printf "%s\t%s\n", id, $2 }'
+}
+
+# Move only the streams that are not already on the target. Re-moving every
+# stream on every poll made PipeWire reject it with MOVE_SINK_INPUT/Invalid
+# argument twice a second, forever.
+route_streams() {
+  local sink=$1 idx id cur
+  idx=$(sink_index "$sink")
+  [[ -n $idx ]] || { log "sink $sink is not present; leaving the routing alone"; return 1; }
+
+  [[ $(default_sink) == "$sink" ]] ||
+    pactl set-default-sink "$sink" 2>/dev/null || log "could not default $sink"
+
+  while IFS=$'\t' read -r id cur; do
+    [[ $cur == "$idx" ]] && continue
+    pactl move-sink-input "$id" "$sink" 2>/dev/null ||
+      log "stream $id refuses to move to $sink"
+  done < <(stream_sinks)
+}
+
+apply_target() {
+  local key=$1 sink profile
+  sink=$(sink_for "$key")
+  [[ -n $sink ]] || { log "output $key is not available"; return 1; }
+
+  if [[ $key != ext:* ]] && [[ $(active_profile) != "$(profile_for "$key")"* ]]; then
+    profile=$(profile_for "$key")
+    pactl set-card-profile "$CARD" "$profile" 2>/dev/null ||
+      pactl set-card-profile "$CARD" "${profile%+*}" 2>/dev/null ||
+      { log "could not switch to the $key profile"; return 1; }
+    wait_for_sink "$sink" || { log "sink $sink never appeared"; return 1; }
+  fi
+
+  route_streams "$sink"
+}
+
+# ------------------------------------------------------------- order & choice
+# Most recently connected first: a new arrival jumps to the front, an unplugged
+# output drops out, everything else keeps its rank.
+update_order() {
+  local avail prev
+  avail=$(candidates | cut -f1)
+  prev=$(cat "$ORDER_FILE" 2>/dev/null)
+
+  if [[ -z $prev ]]; then
+    # No history yet (first run after boot): external device, then jack, then
+    # the display, then the built-in speakers as the fallback.
+    printf '%s\n' "$avail" | awk '
+      /^ext:/ { rank = 0 } /^headphones$/ { rank = 1 }
+      /^hdmi$/ { rank = 2 } /^speakers$/ { rank = 3 }
+      { print rank "\t" $0 }' | sort -s -n -k1,1 | cut -f2 >"$ORDER_FILE"
+    return 0
+  fi
+
+  {
+    printf '%s\n' "$avail" | while read -r k; do
+      printf '%s\n' "$prev" | grep -qxF "$k" || printf '%s\n' "$k"
+    done
+    printf '%s\n' "$prev" | while read -r k; do
+      printf '%s\n' "$avail" | grep -qxF "$k" && printf '%s\n' "$k"
+    done
+  } | awk 'NF' >"$ORDER_FILE"
+}
+
+default_sink() { pactl info 2>/dev/null | sed -n 's/^Default Sink: //p'; }
+
+# The candidate that currently owns the audio, in connection order.
+chosen_by_order() {
+  local k
+  while read -r k; do
+    [[ -n $(sink_for "$k") ]] && { printf '%s\n' "$k"; return 0; }
+  done < <(cat "$ORDER_FILE" 2>/dev/null)
+  printf 'speakers\n'
+}
+
+current_choice() {
+  local pin key
+  pin=$(cat "$PIN_FILE" 2>/dev/null || printf 'auto\n')
+  if [[ $pin != auto && -n $(sink_for "$pin") ]]; then
+    printf '%s\n' "$pin"
+    return 0
+  fi
+  [[ $pin != auto ]] && rm -f "$PIN_FILE"
+  key=$(chosen_by_order)
+  # The jack and the speakers are one sink: show the plugged-in one.
+  [[ $key == speakers && $(jack_on && echo on) == on ]] && key=headphones
+  printf '%s\n' "$key"
+}
+
+use() {
+  local key=$1 label
+  label=$(label_for "$key")
+  [[ -n $label ]] || { log "no such output: $key"; return 1; }
+  apply_target "$key" || return 1
+  printf '%s\n' "$key" >"$PIN_FILE"
+  printf '%s\n' "$key" >"$TARGET_FILE"
+  notify "Audio -> $label"
+}
+
+auto() {
+  update_order
+  local key sink default
+  key=$(current_choice)
+  sink=$(sink_for "$key")
+  default=$(default_sink)
+
+  # WirePlumber routes Bluetooth and USB devices to themselves the moment they
+  # connect. Adopt that instead of dragging the audio back, but only for those
+  # cards: the internal analog/HDMI pair is ours to decide.
+  if [[ -n $default && $default != "$sink" && $default != "$ANALOG_SINK" &&
+        $default != "$HDMI_SINK" ]]; then
+    local k
+    while read -r k; do
+      [[ $(sink_for "$k") == "$default" ]] && { key=$k; sink=$default; break; }
+    done < <(cat "$ORDER_FILE" 2>/dev/null)
+    printf '%s\n' "$key" >"$PIN_FILE"
+  fi
+
+  if [[ $key != "$(cat "$TARGET_FILE" 2>/dev/null)" ]]; then
+    notify "Audio -> $(label_for "$key")"
+  fi
+  apply_target "$key"
+  printf '%s\n' "$key" >"$TARGET_FILE"
+}
+
+status_report() {
+  local key
+  update_order
+  key=$(current_choice)
+  printf 'target=%s\nlabel=%s\nglyph=%s\nchoice=%s\navailable=%s\n' \
+    "$key" "$(label_for "$key")" "$(glyph_for "$key")" \
+    "$(cat "$PIN_FILE" 2>/dev/null || printf 'auto')" \
+    "$(candidates | cut -f1 | paste -sd, -)"
+}
+
+# Cycle through the outputs that are actually available.
+toggle() {
+  local keys=() cur i k n
+  update_order
+  while read -r k; do keys+=("$k"); done < <(candidates | cut -f1 | awk '!seen[$0]++')
+  n=${#keys[@]}
+  ((n == 0)) && return 1
+  cur=$(current_choice)
+  for i in "${!keys[@]}"; do
+    if [[ ${keys[$i]} == "$cur" ]]; then
+      use "${keys[$(((i + 1) % n))]}"
+      return
+    fi
+  done
+  use "${keys[0]}"
+}
+
+notify() {
+  command -v notify-send >/dev/null || return 0
+  notify-send -t 2500 -u low "Audio output" "$*" >/dev/null 2>&1 || true
+}
+
+main() {
+  local cmd=${1:-status}
+  if [[ -z ${OMID_TV_AUDIO_LOCKED:-} ]]; then
+    export OMID_TV_AUDIO_LOCKED=1
+    exec flock -w 5 "$LOCK_FILE" "$0" "$@"
+  fi
+
+  read_hardware || { log "no sound card with an HDMI output found"; exit 1; }
+
+  case $cmd in
+    status) status_report ;;
+    list) candidates ;;
+    use) use "${2:-}" ;;
+    toggle) toggle ;;
+    follow)
+      rm -f "$PIN_FILE"
+      auto
+      notify "Audio follows the connected output again"
+      ;;
+    auto) auto ;;
+    *)
+      echo "usage: omid-tv-audio [status|list|use <key>|toggle|follow|auto]" >&2
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

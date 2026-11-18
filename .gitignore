@@ -1,0 +1,10 @@
+# Editor/OS
+.DS_Store
+*.swp
+*~
+# Local state (never commit)
+.local/
+state/
+*.log
+# Omarchy plugin backups
+*.bak
