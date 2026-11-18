@@ -77,7 +77,3 @@ bind = $mainMod, A, exec, omaaudio toggle
 ## License
 
 MIT
-```
-
-Also update line 17. Let's edit.<|end|><|start|>Assistant to=edit<|channel|>analysis <|constrain|>xml<|message|><rfl:parameter name="path">
-/home/omid/Work/omaaudio/README.md
