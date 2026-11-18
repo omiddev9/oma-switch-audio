@@ -364,6 +364,15 @@ notify() {
   notify-send -t 2500 -u low "Audio output" "$*" >/dev/null 2>&1 || true
 }
 
+sanitize_state_dir() {
+  if [[ -L "$STATE_DIR" ]]; then
+    rm -f "$STATE_DIR"
+  fi
+  mkdir -p "$STATE_DIR"
+  chmod 700 "$STATE_DIR" 2>/dev/null || true
+  find "$STATE_DIR" -maxdepth 1 -type l -delete 2>/dev/null || true
+}
+
 main() {
   local cmd=${1:-status}
   if [[ -z ${OMID_TV_AUDIO_LOCKED:-} ]]; then
@@ -371,7 +380,8 @@ main() {
     exec flock -w 5 "$LOCK_FILE" "$0" "$@"
   fi
 
-  read_hardware || { log "no sound card with an HDMI output found"; exit 1; }
+  read_hardware || { log "no sound card found"; exit 1; }
+  sanitize_state_dir
 
   case $cmd in
     status) status_report ;;
