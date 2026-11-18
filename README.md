@@ -29,8 +29,8 @@ switches the card profile for you.
 ## Install
 
 ```bash
-git clone https://github.com/omiddev9/omaaudio.git
-cd omaaudio
+git clone https://github.com/omiddev9/oma-switch-audio.git
+cd oma-switch-audio
 ./install.sh
 ```
 
