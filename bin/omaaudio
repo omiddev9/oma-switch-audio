@@ -26,6 +26,8 @@ card_section() {
 
 internal_card() {
   local c
+  # Prefer a PCI card that exposes an HDMI output (the analog/HDMI profile
+  # switching case this plugin exists for).
   while read -r c; do
     [[ $c == alsa_card.pci-* ]] || continue
     if card_section "$c" | grep -q "hdmi-output-0"; then
@@ -33,7 +35,16 @@ internal_card() {
       return 0
     fi
   done < <(pactl list cards short 2>/dev/null | awk '{print $2}')
-  return 1
+
+  # Fall back to any PCI sound card (analog-only laptops/desktops).
+  while read -r c; do
+    [[ $c == alsa_card.pci-* ]] || continue
+    printf '%s\n' "$c"
+    return 0
+  done < <(pactl list cards short 2>/dev/null | awk '{print $2}')
+
+  # Last resort: the first card PipeWire knows about.
+  pactl list cards short 2>/dev/null | awk 'NR == 1 { print $2 }'
 }
 
 # Every real sink PipeWire has made: name <TAB> device.api <TAB> label.
@@ -54,7 +65,10 @@ sink_table() {
 # Jack sensors come straight from the codec: while the card is in the HDMI
 # profile the analog ports are not listed by PipeWire at all.
 card_index() {
-  card_section "$1" | sed -n 's/^[[:space:]]*device.string = "\{0,1\}\([0-9]\{1,2\}\).*/\1/p' | head -1
+  local idx
+  idx=$(card_section "$1" | sed -n 's/^[[:space:]]*device.string = "\{0,1\}\([0-9]\{1,2\}\).*/\1/p' | head -1)
+  [[ -n $idx ]] || idx=0
+  printf '%s\n' "$idx"
 }
 
 # Headphone jack detection: codec control names vary ("Headphone Jack",
@@ -81,14 +95,15 @@ active_profile() {
 }
 
 read_hardware() {
-  CARD=$(internal_card) || return 1
+  CARD=$(internal_card)
+  [[ -n $CARD ]] || return 1
   CARD_IDX=$(card_index "$CARD")
   PCI=${CARD#alsa_card.}
   ANALOG_SINK="alsa_output.${PCI}.analog-stereo"
   HDMI_SINK="alsa_output.${PCI}.hdmi-stereo"
   HDMI_LABEL="HDMI display"
   local eld name
-  for eld in /proc/asound/card"$CARD_IDX"/eld#2.3; do
+  for eld in /proc/asound/card"$CARD_IDX"/eld#*; do
     [[ -r $eld ]] || continue
     grep -q 'monitor_present\s\+1' "$eld" || continue
     name=$(sed -n 's/^monitor_name//p' "$eld" | head -1 | tr -d ' \t')

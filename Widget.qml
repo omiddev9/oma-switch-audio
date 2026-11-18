@@ -14,7 +14,7 @@ BarWidget {
   moduleName: "omid.tv-audio"
 
   readonly property string scriptPath: (Quickshell.env("HOME") || "")
-    + "/.local/bin/omid-tv-audio"
+    + "/.local/bin/omaaudio"
 
   property string target: "speakers"
   property string label: "Built-in speakers"

@@ -4,7 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_ID="omid.tv-audio"
-BIN_NAME="omid-tv-audio"
+BIN_NAME="omaaudio"
+COMPAT_NAME="omid-tv-audio"
 
 echo "============================================================"
 echo " Installing Audio Output ($PLUGIN_ID)"
@@ -37,8 +38,10 @@ fi
 
 echo "Installing CLI launcher to ~/.local/bin/..."
 ln -sf "$SCRIPT_DIR/bin/$BIN_NAME" "$HOME/.local/bin/$BIN_NAME"
+# Backward-compatible launcher for earlier installs/keybindings.
+ln -sf "$HOME/.local/bin/$BIN_NAME" "$HOME/.local/bin/$COMPAT_NAME"
 chmod +x "$SCRIPT_DIR/bin/$BIN_NAME"
-echo "✓ $HOME/.local/bin/$BIN_NAME"
+echo "✓ $HOME/.local/bin/$BIN_NAME (also $COMPAT_NAME for compatibility)"
 
 if command -v omarchy-plugin-validate >/dev/null 2>&1; then
   echo "Validating plugin manifest..."

@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "Checking shell syntax..."
-bash -n "$SCRIPT_DIR/bin/omid-tv-audio"
+bash -n "$SCRIPT_DIR/bin/omaaudio"
 
 echo "Checking manifest validation..."
 if command -v omarchy-plugin-validate >/dev/null 2>&1; then

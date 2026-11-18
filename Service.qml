@@ -12,7 +12,7 @@ Item {
   property var manifest: null
 
   readonly property string scriptPath: (Quickshell.env("HOME") || "")
-    + "/.local/bin/omid-tv-audio"
+    + "/.local/bin/omaaudio"
 
   property string lastError: ""
 

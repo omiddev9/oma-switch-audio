@@ -14,7 +14,8 @@ switches the card profile for you.
 - Automatic routing to the most recently connected output.
 - Manual cycling through the outputs that are actually connected.
 - Bar widget showing the output that currently owns the audio.
-- CLI (`omid-tv-audio`) for keybindings and terminal use.
+- CLI (`omaaudio`) for keybindings and terminal use (legacy `omid-tv-audio`
+  launcher kept for compatibility).
 - Remembers your choice across reboots.
 
 ## Requirements
@@ -28,30 +29,30 @@ switches the card profile for you.
 ## Install
 
 ```bash
-git clone https://github.com/omiddev9/omid-tv-audio.git
-cd omid-tv-audio
+git clone https://github.com/omiddev9/omaaudio.git
+cd omaaudio
 ./install.sh
 ```
 
 Or, using Omarchy's plugin manager:
 
 ```bash
-omarchy plugin add https://github.com/omiddev9/omid-tv-audio.git --enable
+omarchy plugin add https://github.com/omiddev9/omaaudio.git --enable
 cd ~/.config/omarchy/plugins/omid.tv-audio
 ./install.sh
 ```
 
 The installer links the plugin into `~/.config/omarchy/plugins/`, installs the
-`omid-tv-audio` launcher into `~/.local/bin/`, and enables the bar widget.
+`omaaudio` launcher into `~/.local/bin/`, and enables the bar widget.
 
 ## Usage
 
 ```bash
-omid-tv-audio status     # report the current output
-omid-tv-audio list       # list available outputs
-omid-tv-audio toggle     # cycle to the next connected output
-omid-tv-audio follow     # return to automatic (last-plugged) routing
-omid-tv-audio auto       # re-evaluate and apply automatically
+omaaudio status     # report the current output
+omaaudio list       # list available outputs
+omaaudio toggle     # cycle to the next connected output
+omaaudio follow     # return to automatic (last-plugged) routing
+omaaudio auto       # re-evaluate and apply automatically
 ```
 
 Bar widget:
@@ -65,7 +66,7 @@ Bar widget:
 Add to `~/.config/hypr/bindings.conf` (or your Omarchy bindings file):
 
 ```
-bind = $mainMod, A, exec, omid-tv-audio toggle
+bind = $mainMod, A, exec, omaaudio toggle
 ```
 
 ## Uninstall
@@ -79,7 +80,5 @@ bind = $mainMod, A, exec, omid-tv-audio toggle
 MIT
 ```
 
-Need check GitHub username. gh account omiddev9. Repo name maybe `omid-tv-audio` or `omarchy-audio-output`? User said plugin. Use `omid-tv-audio` to match. But maybe repo name should be more descriptive. Keep.
-
-LICENSE MIT. Let's write.<|end|><|start|>Assistant to=write<|channel|>analysis <|constrain|>xml<|message|><rfl:parameter name="path">
-/home/omid/Work/omid-tv-audio/LICENSE
+Also update line 17. Let's edit.<|end|><|start|>Assistant to=edit<|channel|>analysis <|constrain|>xml<|message|><rfl:parameter name="path">
+/home/omid/Work/omaaudio/README.md
