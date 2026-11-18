@@ -37,7 +37,7 @@ cd oma-switch-audio
 Or, using Omarchy's plugin manager:
 
 ```bash
-omarchy plugin add https://github.com/omiddev9/omaaudio.git --enable
+omarchy plugin add https://github.com/omiddev9/oma-switch-audio.git --enable
 cd ~/.config/omarchy/plugins/omid.tv-audio
 ./install.sh
 ```
