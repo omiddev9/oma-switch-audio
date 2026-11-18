@@ -16,12 +16,12 @@ mkdir -p "$HOME/.local/state"
 
 PLUGIN_TARGET="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
 if [[ -L "$PLUGIN_TARGET" ]]; then
-  if [[ "$(readlink -f "$PLUGIN_TARGET" 2>/dev/null || true)" == "$SCRIPT_DIR" ]]; then
+  existing="$(readlink -f "$PLUGIN_TARGET" 2>/dev/null || true)"
+  if [[ "$existing" == "$SCRIPT_DIR" ]]; then
     echo "✓ Plugin link already points to $SCRIPT_DIR"
   else
-    echo "Replacing stale plugin link..."
-    rm -f "$PLUGIN_TARGET"
-    ln -s "$SCRIPT_DIR" "$PLUGIN_TARGET"
+    echo "⚠ Plugin link points to another checkout ($existing); leaving it untouched."
+    echo "  Remove it manually if you want to use this checkout."
   fi
 elif [[ -d "$PLUGIN_TARGET" ]]; then
   if [[ "$(cd "$PLUGIN_TARGET" && pwd -P)" == "$(cd "$SCRIPT_DIR" && pwd -P)" ]]; then

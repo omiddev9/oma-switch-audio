@@ -22,7 +22,12 @@ fi
 
 PLUGIN_TARGET="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
 if [[ -L "$PLUGIN_TARGET" ]]; then
-  rm -f "$PLUGIN_TARGET"
+  existing="$(readlink -f "$PLUGIN_TARGET" 2>/dev/null || true)"
+  if [[ "$existing" == "$SCRIPT_DIR" ]]; then
+    rm -f "$PLUGIN_TARGET"
+  else
+    echo "Leaving plugin link in place; it points to another checkout: $existing"
+  fi
 elif [[ -d "$PLUGIN_TARGET" ]]; then
   if [[ "$(cd "$PLUGIN_TARGET" && pwd -P)" == "$(cd "$SCRIPT_DIR" && pwd -P)" ]]; then
     echo "Plugin directory is the source checkout; leaving it in place."
