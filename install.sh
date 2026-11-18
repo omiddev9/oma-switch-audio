@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ID="oma-switch-audio"
+PLUGIN_ID="io.github.omiddev9.oma-switch-audio"
 BIN_NAME="omaaudio"
 
 echo "============================================================"

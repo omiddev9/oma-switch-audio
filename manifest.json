@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "id": "oma-switch-audio",
-  "name": "Audio Output",
+  "id": "io.github.omiddev9.oma-switch-audio",
+  "name": "Oma Switch Audio",
   "version": "1.0.0",
   "author": "omid",
   "license": "MIT",

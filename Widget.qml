@@ -11,7 +11,7 @@ import qs.Ui
 // tooltip methods that facade does not expose.
 BarWidget {
   id: root
-  moduleName: "oma-switch-audio"
+  moduleName: "io.github.omiddev9.oma-switch-audio"
 
   readonly property string scriptPath: (Quickshell.env("HOME") || "")
     + "/.local/bin/omaaudio"
