@@ -13,7 +13,8 @@ BarWidget {
   id: root
   moduleName: "io.github.omiddev9.oma-switch-audio"
 
-  readonly property string scriptPath: Qt.resolvedUrl("bin/omaaudio").toString().replace("file://", "")
+  readonly property string scriptPath: (Quickshell.env("HOME") || "")
+    + "/.config/omarchy/plugins/io.github.omiddev9.oma-switch-audio/bin/omaaudio"
 
   property string target: "speakers"
   property string label: "Built-in speakers"
