@@ -4,14 +4,14 @@ import Quickshell.Io
 import qs.Ui
 
 // Shows the output that currently owns the audio and cycles through the ones
-// that are actually connected. The switching itself lives in `omid-tv-audio`, so
+// that are actually connected. The switching itself lives in `omaaudio`, so
 // a keybinding or a terminal does exactly the same thing.
 // The button does not inherit the host bar object on purpose: third-party
 // widgets get a capability-scoped facade, and the shared button would call
 // tooltip methods that facade does not expose.
 BarWidget {
   id: root
-  moduleName: "omid.tv-audio"
+  moduleName: "oma-switch-audio"
 
   readonly property string scriptPath: (Quickshell.env("HOME") || "")
     + "/.local/bin/omaaudio"

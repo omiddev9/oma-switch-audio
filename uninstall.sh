@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# uninstall.sh — Remove the Audio Output (omid.tv-audio) Omarchy plugin.
+# uninstall.sh — Remove the Audio Output (oma-switch-audio) Omarchy plugin.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ID="omid.tv-audio"
+PLUGIN_ID="oma-switch-audio"
 BIN_NAME="omaaudio"
-COMPAT_NAME="omid-tv-audio"
 
 echo "Uninstalling Audio Output ($PLUGIN_ID)..."
 
@@ -13,7 +12,7 @@ if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin disable "$PLUGIN_ID" 2>/dev/null || true
 fi
 
-rm -f "$HOME/.local/bin/$BIN_NAME" "$HOME/.local/bin/$COMPAT_NAME"
+rm -f "$HOME/.local/bin/$BIN_NAME"
 
 PLUGIN_TARGET="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
 if [[ -L "$PLUGIN_TARGET" ]]; then
@@ -26,7 +25,7 @@ elif [[ -d "$PLUGIN_TARGET" ]]; then
   fi
 fi
 
-rm -rf "$HOME/.local/state/omid-tv-audio"
+rm -rf "$HOME/.local/state/oma-switch-audio"
 
 if command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true

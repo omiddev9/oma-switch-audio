@@ -14,8 +14,7 @@ switches the card profile for you.
 - Automatic routing to the most recently connected output.
 - Manual cycling through the outputs that are actually connected.
 - Bar widget showing the output that currently owns the audio.
-- CLI (`omaaudio`) for keybindings and terminal use (legacy `omid-tv-audio`
-  launcher kept for compatibility).
+- CLI (`omaaudio`) for keybindings and terminal use.
 - Remembers your choice across reboots.
 
 ## Requirements
@@ -38,7 +37,7 @@ Or, using Omarchy's plugin manager:
 
 ```bash
 omarchy plugin add https://github.com/omiddev9/oma-switch-audio.git --enable
-cd ~/.config/omarchy/plugins/omid.tv-audio
+cd ~/.config/omarchy/plugins/oma-switch-audio
 ./install.sh
 ```
 

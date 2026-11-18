@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# install.sh — Install the Audio Output (omid.tv-audio) Omarchy plugin.
+# install.sh — Install the Audio Output (oma-switch-audio) Omarchy plugin.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ID="omid.tv-audio"
+PLUGIN_ID="oma-switch-audio"
 BIN_NAME="omaaudio"
-COMPAT_NAME="omid-tv-audio"
 
 echo "============================================================"
 echo " Installing Audio Output ($PLUGIN_ID)"
@@ -38,10 +37,8 @@ fi
 
 echo "Installing CLI launcher to ~/.local/bin/..."
 ln -sf "$SCRIPT_DIR/bin/$BIN_NAME" "$HOME/.local/bin/$BIN_NAME"
-# Backward-compatible launcher for earlier installs/keybindings.
-ln -sf "$HOME/.local/bin/$BIN_NAME" "$HOME/.local/bin/$COMPAT_NAME"
 chmod +x "$SCRIPT_DIR/bin/$BIN_NAME"
-echo "✓ $HOME/.local/bin/$BIN_NAME (also $COMPAT_NAME for compatibility)"
+echo "✓ $HOME/.local/bin/$BIN_NAME"
 
 if command -v omarchy-plugin-validate >/dev/null 2>&1; then
   echo "Validating plugin manifest..."
@@ -63,15 +60,15 @@ echo "============================================================"
 echo "Available outputs are detected automatically."
 echo ""
 echo "Usage:"
-echo "  omid-tv-audio status          # show the current output"
-echo "  omid-tv-audio toggle          # cycle to the next connected output"
-echo "  omid-tv-audio follow          # return to automatic (last-plugged) routing"
+echo "  omaaudio status          # show the current output"
+echo "  omaaudio toggle          # cycle to the next connected output"
+echo "  omaaudio follow          # return to automatic (last-plugged) routing"
 echo ""
 echo "The bar widget cycles outputs on left click and returns to automatic"
 echo "routing on right click. Middle click opens Omarchy's audio panel."
 echo ""
 echo "Optional Hyprland keybinding (~/.config/hypr/bindings.conf):"
-echo "  bind = \$mainMod, A, exec, omid-tv-audio toggle"
+echo "  bind = \$mainMod, A, exec, omaaudio toggle"
 echo ""
 echo "Dependencies: PipeWire/PulseAudio (pactl), alsa-utils (amixer),"
 echo "util-linux (flock), and libnotify (notify-send, optional)."

@@ -7,7 +7,7 @@
 # changed -- that is why the stock Omarchy audio picker cannot do this alone.
 set -uo pipefail
 
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/omid-tv-audio"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/oma-switch-audio"
 PIN_FILE="$STATE_DIR/choice"
 ORDER_FILE="$STATE_DIR/order"
 TARGET_FILE="$STATE_DIR/.last-target"
@@ -225,7 +225,7 @@ update_order() {
     printf '%s\n' "$avail" | awk '
       /^ext:/ { rank = 0 } /^headphones$/ { rank = 1 }
       /^hdmi$/ { rank = 2 } /^speakers$/ { rank = 3 }
-      { print rank "\t" $0 }' | sort -s -n -k1,1 | cut -f2 >"$ORDER_FILE"
+      { print rank "\t" $0 }' | sort -s -n -k1,1 | cut -f2 | awk '!seen[$0]++' >"$ORDER_FILE"
     return 0
   fi
 
@@ -236,7 +236,7 @@ update_order() {
     printf '%s\n' "$prev" | while read -r k; do
       printf '%s\n' "$avail" | grep -qxF "$k" && printf '%s\n' "$k"
     done
-  } | awk 'NF' >"$ORDER_FILE"
+  } | awk 'NF && !seen[$0]++' >"$ORDER_FILE"
 }
 
 default_sink() { pactl info 2>/dev/null | sed -n 's/^Default Sink: //p'; }
@@ -276,10 +276,11 @@ use() {
 
 auto() {
   update_order
-  local key sink default
+  local key sink default last pending count
   key=$(current_choice)
   sink=$(sink_for "$key")
   default=$(default_sink)
+  last=$(cat "$TARGET_FILE" 2>/dev/null)
 
   # WirePlumber routes Bluetooth and USB devices to themselves the moment they
   # connect. Adopt that instead of dragging the audio back, but only for those
@@ -291,6 +292,33 @@ auto() {
       [[ $(sink_for "$k") == "$default" ]] && { key=$k; sink=$default; break; }
     done < <(cat "$ORDER_FILE" 2>/dev/null)
     printf '%s\n' "$key" >"$PIN_FILE"
+  fi
+
+  # Hysteresis: a single transient reading (flaky jack/HDMI detection) must
+  # not flip the output and cause a volume drop. Require the new target to win
+  # several polls in a row before switching; switch immediately only when the
+  # current target has actually disappeared.
+  if [[ -n $last && $key != "$last" ]]; then
+    if [[ -z $(sink_for "$last") ]]; then
+      rm -f "$STATE_DIR/.pending-target" "$STATE_DIR/.pending-count"
+    else
+      pending=$(cat "$STATE_DIR/.pending-target" 2>/dev/null)
+      if [[ $pending == "$key" ]]; then
+        count=$(cat "$STATE_DIR/.pending-count" 2>/dev/null); count=$((count + 1))
+      else
+        pending=$key; count=1
+      fi
+      printf '%s\n' "$pending" >"$STATE_DIR/.pending-target"
+      printf '%s\n' "$count" >"$STATE_DIR/.pending-count"
+      if (( count < 3 )); then
+        key=$last
+        sink=$(sink_for "$key")
+      else
+        rm -f "$STATE_DIR/.pending-target" "$STATE_DIR/.pending-count"
+      fi
+    fi
+  else
+    rm -f "$STATE_DIR/.pending-target" "$STATE_DIR/.pending-count"
   fi
 
   if [[ $key != "$(cat "$TARGET_FILE" 2>/dev/null)" ]]; then
@@ -353,7 +381,7 @@ main() {
       ;;
     auto) auto ;;
     *)
-      echo "usage: omid-tv-audio [status|list|use <key>|toggle|follow|auto]" >&2
+      echo "usage: omaaudio [status|list|use <key>|toggle|follow|auto]" >&2
       exit 1
       ;;
   esac
