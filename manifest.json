@@ -3,7 +3,7 @@
   "id": "io.github.omiddev9.oma-switch-audio",
   "name": "Oma Switch Audio",
   "version": "1.0.0",
-  "author": "omid",
+  "author": "Omid.Developer",
   "license": "MIT",
   "description": "Follow the output you plug in: jack speaker/headphone, Bluetooth, USB or the HDMI display.",
   "kinds": [
