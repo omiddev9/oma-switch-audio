@@ -12,7 +12,13 @@ if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin disable "$PLUGIN_ID" 2>/dev/null || true
 fi
 
-rm -f "$HOME/.local/bin/$BIN_NAME"
+BIN_TARGET="$HOME/.local/bin/$BIN_NAME"
+if [[ -L "$BIN_TARGET" ]]; then
+  existing="$(readlink -f "$BIN_TARGET" 2>/dev/null || true)"
+  if [[ "$existing" == "$SCRIPT_DIR/bin/$BIN_NAME" ]]; then
+    rm -f "$BIN_TARGET"
+  fi
+fi
 
 PLUGIN_TARGET="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
 if [[ -L "$PLUGIN_TARGET" ]]; then

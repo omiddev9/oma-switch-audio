@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 // One instance of the cable watcher, for every monitor's bar.
@@ -11,8 +10,7 @@ Item {
   property var shell: null
   property var manifest: null
 
-  readonly property string scriptPath: (Quickshell.env("HOME") || "")
-    + "/.local/bin/omaaudio"
+  readonly property string scriptPath: Qt.resolvedUrl("bin/omaaudio").toString().replace("file://", "")
 
   property string lastError: ""
 

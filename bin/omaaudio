@@ -6,6 +6,7 @@
 # so PipeWire does not even create the other sink until the card profile is
 # changed -- that is why the stock Omarchy audio picker cannot do this alone.
 set -uo pipefail
+umask 077
 
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/oma-switch-audio"
 PIN_FILE="$STATE_DIR/choice"
@@ -13,6 +14,7 @@ ORDER_FILE="$STATE_DIR/order"
 TARGET_FILE="$STATE_DIR/.last-target"
 LOCK_FILE="$STATE_DIR/.lock"
 mkdir -p "$STATE_DIR"
+chmod 700 "$STATE_DIR" 2>/dev/null || true
 
 log() { printf '%s\n' "$*" >&2; }
 
@@ -304,7 +306,9 @@ auto() {
     else
       pending=$(cat "$STATE_DIR/.pending-target" 2>/dev/null)
       if [[ $pending == "$key" ]]; then
-        count=$(cat "$STATE_DIR/.pending-count" 2>/dev/null); count=$((count + 1))
+        count=$(cat "$STATE_DIR/.pending-count" 2>/dev/null)
+        [[ $count =~ ^[0-9]+$ ]] || count=0
+        count=$((count + 1))
       else
         pending=$key; count=1
       fi

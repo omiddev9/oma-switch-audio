@@ -36,9 +36,20 @@ else
 fi
 
 echo "Installing CLI launcher to ~/.local/bin/..."
-ln -sf "$SCRIPT_DIR/bin/$BIN_NAME" "$HOME/.local/bin/$BIN_NAME"
+BIN_TARGET="$HOME/.local/bin/$BIN_NAME"
+if [[ -L "$BIN_TARGET" || -e "$BIN_TARGET" ]]; then
+  existing="$(readlink -f "$BIN_TARGET" 2>/dev/null || true)"
+  if [[ "$existing" == "$SCRIPT_DIR/bin/$BIN_NAME" ]]; then
+    echo "✓ $BIN_TARGET already points to this plugin"
+  else
+    echo "⚠ $BIN_TARGET exists and is not managed by this plugin; leaving it untouched."
+    echo "  Remove or rename it if you want the omaaudio launcher."
+  fi
+else
+  ln -s "$SCRIPT_DIR/bin/$BIN_NAME" "$BIN_TARGET"
+  echo "✓ $BIN_TARGET"
+fi
 chmod +x "$SCRIPT_DIR/bin/$BIN_NAME"
-echo "✓ $HOME/.local/bin/$BIN_NAME"
 
 if command -v omarchy-plugin-validate >/dev/null 2>&1; then
   echo "Validating plugin manifest..."
