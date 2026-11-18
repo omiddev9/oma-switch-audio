@@ -8,8 +8,18 @@ BIN_NAME="omaaudio"
 
 echo "Uninstalling Audio Output ($PLUGIN_ID)..."
 
-if command -v omarchy >/dev/null 2>&1; then
+owns_registration=0
+PLUGIN_TARGET="$HOME/.config/omarchy/plugins/$PLUGIN_ID"
+if [[ -L "$PLUGIN_TARGET" && "$(readlink -f "$PLUGIN_TARGET" 2>/dev/null || true)" == "$SCRIPT_DIR" ]]; then
+  owns_registration=1
+elif [[ -d "$PLUGIN_TARGET" && "$(cd "$PLUGIN_TARGET" && pwd -P)" == "$(cd "$SCRIPT_DIR" && pwd -P)" ]]; then
+  owns_registration=1
+fi
+
+if (( owns_registration )) && command -v omarchy >/dev/null 2>&1; then
   omarchy plugin disable "$PLUGIN_ID" 2>/dev/null || true
+elif command -v omarchy >/dev/null 2>&1; then
+  echo "Plugin registration belongs to another checkout; leaving it untouched."
 fi
 
 BIN_TARGET="$HOME/.local/bin/$BIN_NAME"
@@ -36,9 +46,11 @@ elif [[ -d "$PLUGIN_TARGET" ]]; then
   fi
 fi
 
-rm -rf "$HOME/.local/state/oma-switch-audio"
+if (( owns_registration )); then
+  rm -rf "$HOME/.local/state/oma-switch-audio"
+fi
 
-if command -v omarchy-shell >/dev/null 2>&1; then
+if (( owns_registration )) && command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
 fi
 

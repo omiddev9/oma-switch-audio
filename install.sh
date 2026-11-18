@@ -58,10 +58,19 @@ elif command -v omarchy >/dev/null 2>&1; then
   omarchy plugin validate "$SCRIPT_DIR" || echo "Note: manifest validation warning"
 fi
 
-if command -v omarchy >/dev/null 2>&1; then
+owns_registration=0
+if [[ -L "$PLUGIN_TARGET" && "$(readlink -f "$PLUGIN_TARGET" 2>/dev/null || true)" == "$SCRIPT_DIR" ]]; then
+  owns_registration=1
+elif [[ -d "$PLUGIN_TARGET" && "$(cd "$PLUGIN_TARGET" && pwd -P)" == "$(cd "$SCRIPT_DIR" && pwd -P)" ]]; then
+  owns_registration=1
+fi
+
+if (( owns_registration )) && command -v omarchy >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   echo "Enabling plugin in the Omarchy shell..."
   omarchy plugin enable "$PLUGIN_ID" 2>/dev/null || true
+elif command -v omarchy >/dev/null 2>&1; then
+  echo "Plugin registration belongs to another checkout; leaving it untouched."
 fi
 
 echo ""
