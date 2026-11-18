@@ -18,7 +18,7 @@ BarWidget {
 
   property string target: "speakers"
   property string label: "Built-in speakers"
-  property string glyph: "󰓃"
+  property string glyph: "🔊"
   property string available: "speakers"
 
   readonly property bool external: available.split(",").length > 1 || target !== "speakers"
